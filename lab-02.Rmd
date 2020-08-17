@@ -1,0 +1,59 @@
+# Libraries needed
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(knitr)
+library(readxl)
+library(zoo)
+```
+
+# Data
+```{r, warning=FALSE}
+data = read.csv('https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv')
+popdata = read_xls('data/PopulationEstimates.xls', skip = 2)
+```
+
+# Question 1
+### Steps
+#### 1. See Data tab
+
+#### 2. Making a California Subset
+```{r}
+caldata <- data %>% 
+  filter(state=='California') %>%
+  group_by(date) %>% 
+  mutate(newcases = cases - lag(cases)) %>% 
+  ungroup()
+```
+Simple, easy four lines of code to understand. Simply put, I took the data, filtered to California, grouped each county by date, created the new cases variable, and ungrouped the whole thing for later analysis. EZ, PZ, lemon squeezie. 
+
+#### 3. Generating Two tables
+```{r, warning=FALSE}
+table1 <- caldata %>% 
+  group_by(county) %>% 
+  summarise(cases=sum(cases)) %>% 
+  arrange(-cases) %>% 
+  head(5)
+
+table2 <- caldata %>% 
+  group_by(county) %>% 
+  summarise(newcases=sum(newcases)) %>% 
+  arrange(-newcases) %>% 
+  head(5)
+
+tables<-kables(list(kable(table1), kable(table2)), caption = 'Top 5 Cases Counts by County')
+view(tables)
+```
+I'm not sure if this is right, my kable() function doesn't seem to produce a viewable table. 
+
+#### 4. & 5. See data tab (two rows needed skipping)
+
+#### 6. Exploring the Data
+```{r, message=FALSE}
+names(popdata)
+dim(popdata)
+nrow(popdata)
+str(popdata)
+```
+Using these basic functions we can determine which fields we want to join. For example, State is the same for both my caldata and popdata sets. Similarlly, but not exactly the same, both data sets have a FIPS code, popdata refers to it as FIPStxt while caldata refers to it as just FIPS, and is only a 4 digit code when necessary (the 0 in some of the FIPS have been removed in the caldata set). We also know that there are 3,273 entries and 165 different variables to describe each entry. 
+  
