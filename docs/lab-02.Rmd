@@ -1,3 +1,12 @@
+---
+title: "Geography 176A LA"
+author: "[Ryan Erickson](https://github.com/IamRyanE)"
+subtitle: 'Lab 02: COVID-19 Pandemic'
+output:
+  html_document:
+    theme: journal
+---
+
 # Libraries needed
 
 ```{r, message=FALSE, warning=FALSE}
@@ -41,19 +50,20 @@ table2 <- caldata %>%
   arrange(-newcases) %>% 
   head(5)
 
-tables<-kables(list(kable(table1), kable(table2)), caption = 'Top 5 Cases Counts by County')
-view(tables)
-```
-I'm not sure if this is right, my kable() function doesn't seem to produce a viewable table. 
+tables<-kable(table1, caption = 'Top 5 Cases Counts by County', col.names = c("County", "Cases"))
 
-#### 4. & 5. See data tab (two rows needed skipping)
+tables
+```
+
+#### 4. & 5. See data tab
+Here we needed the first two rows to be skipped as the developer included two "title" rows which made the inputting of the data in R weird. 
 
 #### 6. Exploring the Data
-```{r, message=FALSE}
+```{r, include = FALSE, message=FALSE}
 names(popdata)
 dim(popdata)
 nrow(popdata)
 str(popdata)
 ```
-Using these basic functions we can determine which fields we want to join. For example, State is the same for both my caldata and popdata sets. Similarlly, but not exactly the same, both data sets have a FIPS code, popdata refers to it as FIPStxt while caldata refers to it as just FIPS, and is only a 4 digit code when necessary (the 0 in some of the FIPS have been removed in the caldata set). We also know that there are 3,273 entries and 165 different variables to describe each entry. 
+Using these basic functions we can determine which fields we want to join. For example, State is the same for both my caldata and popdata sets. Similarly, but not exactly the same, both data sets have a FIPS code, popdata refers to it as FIPStxt while caldata refers to it as just FIPS, and is only a 4 digit code when necessary (the 0 in some of the FIPS have been removed in the caldata set). We also know that there are 3,273 entries and 165 different variables to describe each entry. 
   

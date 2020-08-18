@@ -1,8 +1,14 @@
----
-title: "Geography 176A La"
-author: "[Mike Johnson](https://mikejohnson51.github.io)"
-subtitle: 'Lab 03: COVID-19 Pandemic'
+name: "labswebpage"
+output_dir: "."
+navbar:
+  title: "A collection of Labs by Ryan Erickson"
+  left:
+    - text: "Home"
+      icon: fa-home
+      href: index.html #copy this to add webpages
+  right:    
+    - icon: fa-github
+      href: https://github.com/IamRyanE
 output:
   html_document:
     theme: journal
----
