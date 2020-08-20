@@ -7,9 +7,11 @@ title: "Lab Home Page"
 This is a collection of labs I've done while helping out with a class. The class is Geography 176A at UCSB, and is an introduction to GIS. It's the first part in a three course series that is required for all students seeking the GIS emphasis in their Geography. Below you can see all the labs I've done for this class (some may be incomplete for the time being):
 
 <center>
-![Lab 1]()
+[Lab 1]()
 
-![Lab 2]()
+[Lab 2](https://iamryane.github.io/geog176A_labs/lab-02.html)
 
-![Lab 3]()
+[Lab 3](https://iamryane.github.io/geog176A_labs/lab-03.html)
+
+[Lab 4]()
 </center>

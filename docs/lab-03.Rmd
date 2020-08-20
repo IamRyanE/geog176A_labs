@@ -1,0 +1,169 @@
+---
+title: "Geography 176A"
+author: "[Ryan Erickson](https://github.com/IamRyanE)"
+subtitle: 'Lab 03: Distances and the Border Zone'
+output:
+  html_document:
+    theme: journal
+---
+## Libraries
+### SPDS
+```{r, include=FALSE, message=FALSE}
+library(tidyverse)
+library(sf)
+library(units)
+```
+
+### Data
+```{r, include=FALSE, message=FALSE}
+library(USAboundaries)
+library(rnaturalearth)
+```
+
+### Visualization
+```{r, include=FALSE, message=FALSE}
+library(gghighlight)
+library(ggrepel)
+library(ggthemes)
+library(knitr)
+```
+
+### Creating a common projected crs
+```{r}
+projcs = "+proj=eqdc +lat_0=40 +lon_0=-96 +lat_1=20 +lat_2=60 +x_0=0 +y_0=0 +datum=NAD83 +units=m +no_defs"
+```
+
+## Question 1
+#### Creating the three necessary databases
+The first part of this question was done previously, by installing the correct packages to use. 
+```{r, include=FALSE, message=FALSE}
+region = data.frame(state_name = state.name,
+                    region = state.region)
+
+usboundaries = USAboundaries::us_states(resolution = "low") %>% 
+  filter(!state_name %in% c("Hawaii", "Alaska", "Puerto Rico", "District of Columbia")) %>% 
+  left_join(region) %>% 
+  st_transform(projcs, crs = 5070)
+
+wldboundaries = rnaturalearth::countries110 %>% 
+  st_as_sf() %>% 
+  filter(ADMIN %in% c("Mexico", "United States of America", "Canada")) %>% 
+  st_transform(projcs, crs = 5070)
+
+cities = read_csv("../data/uscities.csv") %>% 
+  st_as_sf(coords = c("lng", "lat"), crs = 5070) %>% 
+  st_filter(., usboundaries, .predicate = st_intersects) %>%
+  st_transform(projcs)
+```
+
+After creating the main databases, I narrowed them down to calculate distances later. I'm sure there's a better way to do this but for the time being this will work just fine.
+
+```{r, include=FALSE, message=FALSE}
+wldboundaries_can = wldboundaries %>% 
+  filter(ADMIN %in% c("Canada","United States of America"))
+
+wldboundaries_mex = wldboundaries %>% 
+  filter(ADMIN %in% c("Mexico","United States of America"))
+```
+
+This data set calls for the conterminous United States which are all the states South of Canada and North of Mexico. The & sign tells R to filter rows that are of jurisdiction type state, and are not called Alaska or Hawaii. st_crs shows us the current coordinate reference system being used. We can see it's user defined (by the projcs variable created earlier). 
+
+```{r, include=FALSE, message=FALSE}
+st_crs(usboundaries)
+st_crs(wldboundaries)
+st_crs(cities)
+```
+
+
+## Question 2
+### Union and Combine
+
+Here I mainly used the combine function, for the purposes of this lab I don't really see the need to use a union
+
+Unions:
+```{r}
+usboundaries_un = st_union(usboundaries) %>% 
+  st_cast("MULTILINESTRING")
+
+wldboundaries_un = st_union(wldboundaries) %>% 
+  st_cast("MULTILINESTRING")
+```
+
+Combines:
+```{r}
+usboundaries_com = st_combine(usboundaries) %>% 
+  st_cast("MULTILINESTRING")
+
+wldboundaries_com = st_combine(wldboundaries) %>% 
+  st_cast("MULTILINESTRING")
+
+wldboundaries_can_com = st_combine(wldboundaries_can) %>% 
+  st_cast("MULTILINESTRING")
+
+wldboundaries_mex_com = st_combine(wldboundaries_mex) %>% 
+  st_cast("MULTILINESTRING")
+```
+
+Not sure why but I had to transform the coordinate systems to EPSG 5070 again
+```{r}
+usboundaries_com = st_transform(usboundaries_com, 5070)
+wldboundaries_un = st_transform(wldboundaries_un, 5070)
+wldboundaries_com = st_transform(wldboundaries_com, 5070)
+wldboundaries_can_com = st_transform(wldboundaries_can_com, 5070)
+wldboundaries_mex_com = st_transform(wldboundaries_mex_com, 5070)
+cities = st_transform(cities, 5070)
+```
+
+### Distance Calculations
+
+```{r}
+cities = cities %>% 
+  mutate(dist_to_state = st_distance(., usboundaries_com),
+         dist_to_state = set_units(dist_to_state, "km"),
+         dist_to_state = drop_units(dist_to_state),
+         dist_to_bor = st_distance(., wldboundaries_com),
+         dist_to_bor = set_units(dist_to_bor, "km"),
+         dist_to_bor = drop_units(dist_to_bor),
+         dist_to_can = st_distance(., wldboundaries_can_com),
+         dist_to_can = set_units(dist_to_can, "km"),
+         dist_to_can = drop_units(dist_to_can),
+         dist_to_mex = st_distance(., wldboundaries_mex_com),
+         dist_to_mex = set_units(dist_to_mex, "km"),
+         dist_to_mex = drop_units(dist_to_mex))
+         
+cities_big = cities %>% 
+  group_by(state_name) %>% 
+  slice_max(population, n=1) %>% 
+  ungroup()
+
+cities_160km = cities %>% 
+  group_by(state_name) %>% 
+  filter(dist_to_bor <= 160.934 | dist_to_can <= 160.934 | dist_to_mex <= 160.934) %>% 
+  ungroup
+```
+
+#### Plots
+```{r}
+ggplot() + 
+  geom_sf(data = cities, aes(col = dist_to_state), size = .1) + 
+  geom_sf(data = usboundaries_com) +
+  geom_sf(data = cities_big) + 
+  scale_color_gradient(low = "gray56", high = "red2") + 
+  ggthemes::theme_map() +
+  ggrepel::geom_label_repel(
+    data = cities_big,
+    aes(label = city, geometry = geometry),
+    stat = "sf_coordinates",
+    size = 3
+  )
+```
+
+```{r}
+ggplot() + 
+  geom_sf(data = cities, aes(col = dist_to_bor), size = .1) + 
+  geom_sf(data = wldboundaries_com) +
+  geom_sf(data = cities_big, color = "blue") + 
+  geom_sf(data = cities_160km, color = "red") + 
+  scale_color_gradient(low = "red2", high = "white") + 
+  ggthemes::theme_map()
+```

@@ -5,7 +5,7 @@ navbar:
   left:
     - text: "Home"
       icon: fa-home
-      href: index.html #copy this to add webpages
+      href: https://iamryane.github.io/RyanE/ #copy this to add webpages
   right:    
     - icon: fa-github
       href: https://github.com/IamRyanE

@@ -1,5 +1,5 @@
 ---
-title: "Geography 176A LA"
+title: "Geography 176A"
 author: "[Ryan Erickson](https://github.com/IamRyanE)"
 subtitle: 'Lab 02: COVID-19 Pandemic'
 output:
