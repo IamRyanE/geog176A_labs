@@ -37,7 +37,7 @@ projcs = "+proj=eqdc +lat_0=40 +lon_0=-96 +lat_1=20 +lat_2=60 +x_0=0 +y_0=0 +dat
 ## Question 1
 #### Creating the three necessary databases
 The first part of this question was done previously, by installing the correct packages to use. 
-```{r}
+```{r, message=FALSE}
 region = data.frame(state_name = state.name,
                     region = state.region)
 
@@ -123,7 +123,7 @@ cities = cities %>%
   mutate(dist_to_state = st_distance(., usboundaries_com),
          dist_to_state = set_units(dist_to_state, "km"),
          dist_to_state = drop_units(dist_to_state),
-         dist_to_bor = st_distance(., wldboundaries_un),
+         dist_to_bor = st_distance(., wldboundaries_com),
          dist_to_bor = set_units(dist_to_bor, "km"),
          dist_to_bor = drop_units(dist_to_bor),
          dist_to_can = st_distance(., wldboundaries_can_com),
@@ -152,7 +152,7 @@ big_cities_160km = cities_160km %>%
   ungroup()
 ```
 
-#### Distance to USA Coastal Border
+#### Distance to Borders
 ```{r}
 top5far_cites = cities %>% 
   slice_max(dist_to_bor, n=5) %>% 
@@ -160,8 +160,8 @@ top5far_cites = cities %>%
   st_drop_geometry()
 
 table1 = kable(top5far_cites,
-             col.names = c("City", "State", "Distance from Coast"),
-             caption = "Top 5 Cities Furthest from a Coastal Border") %>% 
+             col.names = c("City", "State", "Distance from Border"),
+             caption = "Top 5 Cities Furthest from any Border") %>% 
          kable_styling(bootstrap_options = "striped", full_width = F)
 
 ```
@@ -272,7 +272,7 @@ top5state_map = cities %>%
 ggplot() + 
   geom_sf(data = cities, aes(col = dist_to_state), size = .3) + 
   scale_color_gradient(low = "gray", high = "blue") +
-  geom_sf(data = top5state_map, color = "red", size = .75) + 
+  geom_sf(data = top5state_map, color = "red", size = 1) + 
   geom_sf(data = usboundaries_com) +
   geom_sf(data = cities_big, color = "green", size = 1) + 
   ggthemes::theme_map() +
@@ -290,7 +290,7 @@ Each dot is representative of one city. Grey dots are closer to state lines whil
 
 #### Equidistant boundary from Mexico to Canada
 Here we have to mutate the distances using an absolute value (you'll see why in the code). We have to find all the cities that are equal distant from both the Canadian and Mexican border. This should highlight all the cities in the center of the US. 
-```{r}
+```{r, message=FALSE}
 km_100eqd = cities %>% 
   mutate(km100 = abs(dist_to_can - dist_to_mex))
 
