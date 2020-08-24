@@ -159,7 +159,7 @@ top5far_cites = cities %>%
   select(city, state_name, dist_to_bor) %>% 
   st_drop_geometry()
 
-table1 = kable(top5far_cites,
+table10 = kable(top5far_cites,
              col.names = c("City", "State", "Distance from Border"),
              caption = "Top 5 Cities Furthest from any Border") %>% 
          kable_styling(bootstrap_options = "striped", full_width = F)
@@ -210,7 +210,7 @@ table4 = kable(top5can_cites,
 
 #### All table results
 ```{r}
-table1
+table10
 table2
 table3
 table4
