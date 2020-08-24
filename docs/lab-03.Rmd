@@ -26,6 +26,7 @@ library(gghighlight)
 library(ggrepel)
 library(ggthemes)
 library(knitr)
+library(kableExtra)
 ```
 
 ### Creating a common projected crs
@@ -36,34 +37,35 @@ projcs = "+proj=eqdc +lat_0=40 +lon_0=-96 +lat_1=20 +lat_2=60 +x_0=0 +y_0=0 +dat
 ## Question 1
 #### Creating the three necessary databases
 The first part of this question was done previously, by installing the correct packages to use. 
-```{r, include=FALSE, message=FALSE}
+```{r}
 region = data.frame(state_name = state.name,
                     region = state.region)
 
 usboundaries = USAboundaries::us_states(resolution = "low") %>% 
   filter(!state_name %in% c("Hawaii", "Alaska", "Puerto Rico", "District of Columbia")) %>% 
   left_join(region) %>% 
-  st_transform(projcs, crs = 5070)
+  st_transform(projcs)
 
 wldboundaries = rnaturalearth::countries110 %>% 
   st_as_sf() %>% 
   filter(ADMIN %in% c("Mexico", "United States of America", "Canada")) %>% 
-  st_transform(projcs, crs = 5070)
+  st_transform(projcs)
 
 cities = read_csv("../data/uscities.csv") %>% 
-  st_as_sf(coords = c("lng", "lat"), crs = 5070) %>% 
-  st_filter(., usboundaries, .predicate = st_intersects) %>%
-  st_transform(projcs)
+  st_as_sf(coords = c("lng", "lat"), crs = 4326) %>% 
+  st_transform(projcs) %>% 
+  st_filter(usboundaries, .predicate = st_intersects)
+
 ```
 
 After creating the main databases, I narrowed them down to calculate distances later. I'm sure there's a better way to do this but for the time being this will work just fine.
 
-```{r, include=FALSE, message=FALSE}
+```{r}
 wldboundaries_can = wldboundaries %>% 
-  filter(ADMIN %in% c("Canada","United States of America"))
+  filter(ADMIN %in% c("Canada"))
 
 wldboundaries_mex = wldboundaries %>% 
-  filter(ADMIN %in% c("Mexico","United States of America"))
+  filter(ADMIN %in% c("Mexico"))
 ```
 
 This data set calls for the conterminous United States which are all the states South of Canada and North of Mexico. The & sign tells R to filter rows that are of jurisdiction type state, and are not called Alaska or Hawaii. st_crs shows us the current coordinate reference system being used. We can see it's user defined (by the projcs variable created earlier). 
@@ -106,22 +108,22 @@ wldboundaries_mex_com = st_combine(wldboundaries_mex) %>%
 
 Not sure why but I had to transform the coordinate systems to EPSG 5070 again
 ```{r}
-usboundaries_com = st_transform(usboundaries_com, 5070)
-wldboundaries_un = st_transform(wldboundaries_un, 5070)
-wldboundaries_com = st_transform(wldboundaries_com, 5070)
-wldboundaries_can_com = st_transform(wldboundaries_can_com, 5070)
-wldboundaries_mex_com = st_transform(wldboundaries_mex_com, 5070)
-cities = st_transform(cities, 5070)
+usboundaries_com = st_transform(usboundaries_com, projcs)
+wldboundaries_un = st_transform(wldboundaries_un, projcs)
+wldboundaries_com = st_transform(wldboundaries_com, projcs)
+wldboundaries_can_com = st_transform(wldboundaries_can_com, projcs)
+wldboundaries_mex_com = st_transform(wldboundaries_mex_com, projcs)
+cities = st_transform(cities, projcs)
 ```
 
 ### Distance Calculations
-
+Remember to make sure the distance calculations are all within the cities data.frame
 ```{r}
 cities = cities %>% 
   mutate(dist_to_state = st_distance(., usboundaries_com),
          dist_to_state = set_units(dist_to_state, "km"),
          dist_to_state = drop_units(dist_to_state),
-         dist_to_bor = st_distance(., wldboundaries_com),
+         dist_to_bor = st_distance(., wldboundaries_un),
          dist_to_bor = set_units(dist_to_bor, "km"),
          dist_to_bor = drop_units(dist_to_bor),
          dist_to_can = st_distance(., wldboundaries_can_com),
@@ -130,7 +132,10 @@ cities = cities %>%
          dist_to_mex = st_distance(., wldboundaries_mex_com),
          dist_to_mex = set_units(dist_to_mex, "km"),
          dist_to_mex = drop_units(dist_to_mex))
-         
+```
+
+Narrowing down certain cities for later
+```{r}
 cities_big = cities %>% 
   group_by(state_name) %>% 
   slice_max(population, n=1) %>% 
@@ -140,30 +145,198 @@ cities_160km = cities %>%
   group_by(state_name) %>% 
   filter(dist_to_bor <= 160.934 | dist_to_can <= 160.934 | dist_to_mex <= 160.934) %>% 
   ungroup
+
+big_cities_160km = cities_160km %>% 
+    group_by(state_name) %>% 
+  slice_max(population, n=1) %>% 
+  ungroup()
 ```
 
-#### Plots
+#### Distance to USA Coastal Border
 ```{r}
-ggplot() + 
-  geom_sf(data = cities, aes(col = dist_to_state), size = .1) + 
-  geom_sf(data = usboundaries_com) +
-  geom_sf(data = cities_big) + 
-  scale_color_gradient(low = "gray56", high = "red2") + 
-  ggthemes::theme_map() +
+top5far_cites = cities %>% 
+  slice_max(dist_to_bor, n=5) %>% 
+  select(city, state_name, dist_to_bor) %>% 
+  st_drop_geometry()
+
+table1 = kable(top5far_cites,
+             col.names = c("City", "State", "Distance from Coast"),
+             caption = "Top 5 Cities Furthest from a Coastal Border") %>% 
+         kable_styling(bootstrap_options = "striped", full_width = F)
+
+```
+
+#### Distances to a State Border
+```{r}
+top5state_cites = cities %>% 
+  slice_max(dist_to_state, n=5) %>% 
+  select(city, state_name, dist_to_state) %>% 
+  st_drop_geometry()
+
+table2 = kable(top5state_cites,
+             col.names = c("City", "State", "Distance from a State Border"),
+             caption = "Top 5 Cities Furthest from a State Border") %>% 
+         kable_styling(bootstrap_options = "striped", full_width = F)
+
+```
+
+#### Distance to Mexico Border
+```{r}
+top5mex_cites = cities %>% 
+  slice_max(dist_to_mex, n=5) %>% 
+  select(city, state_name, dist_to_mex) %>% 
+  st_drop_geometry()
+
+table3 = kable(top5mex_cites,
+             col.names = c("City", "State", "Distance from Mexican Border"),
+             caption = "Top 5 Cities Furthest from the Mexican Border") %>% 
+         kable_styling(bootstrap_options = "striped", full_width = F)
+
+```
+ 
+#### Distance to Canada Border
+```{r}
+top5can_cites = cities %>% 
+  slice_max(dist_to_can, n=5) %>% 
+  select(city, state_name, dist_to_can) %>% 
+  st_drop_geometry()
+
+table4 = kable(top5can_cites,
+             col.names = c("City", "State", "Distance from Canadian Border"),
+             caption = "Top 5 Cities Furthest from the Canadian Border") %>% 
+         kable_styling(bootstrap_options = "striped", full_width = F)
+
+```
+
+#### All table results
+```{r}
+table1
+table2
+table3
+table4
+```
+
+# Question 3
+### Plots and Maps
+
+#### 10 Largest Cities in the US
+```{r}
+cities_top10 = cities %>% 
+  slice_max(population, n=10)
+
+ggplot()+
+  geom_sf(data = cities_top10, color = "blue", size = 1.5, ) + 
+  geom_sf(data = usboundaries_com) + 
+  ggthemes::scale_colour_economist() + 
   ggrepel::geom_label_repel(
-    data = cities_big,
+    data = cities_top10,
     aes(label = city, geometry = geometry),
     stat = "sf_coordinates",
-    size = 3
-  )
+    size = 3) + 
+  labs(title = "Top 10 Most Populous Cities in the Continuous US",
+       caption = "Here we can see the top 10 cities in the US with the highest population counts. They are also labeled.")
 ```
+
+#### City Distance from a Coastal Border
+Rewrite borders data.frame to include sf for labels (i.e. don't drop geometry):
+```{r}
+top5far_map = cities %>% 
+  slice_max(dist_to_bor, n=5)
+```
+
+I'm assuming this is meant to be distance to an oceanic border, if not simply change the dist_to_bor variable in the cities data.frame to usr the combination of world boundaries rather than the union.
+
+```{r}
+ggplot() +
+  geom_sf(data = cities, aes(col = dist_to_bor), size = .3) + 
+  geom_sf(data = top5far_map, color = "red", size = 1) + 
+  geom_sf(data = usboundaries_com) + 
+  scale_color_gradient(low = "grey", high = "blue") + 
+  ggrepel::geom_label_repel(
+    data = top5far_map,
+    aes(label = city, geometry = geometry),
+    stat = "sf_coordinates",
+    size = 3) + 
+  labs(title = "City Distances from a Coastal Border",
+       caption = "Showing cities furthest from a Coastal border")
+```
+
+#### City distance from a State Border
+Rewrite states data.frame to include sf (i.e. don't drop geometry):
+```{r}
+top5state_map = cities %>% 
+  slice_max(dist_to_state, n=5)
+```
+#### City Map
+```{r}
+ggplot() + 
+  geom_sf(data = cities, aes(col = dist_to_state), size = .3) + 
+  scale_color_gradient(low = "gray", high = "blue") +
+  geom_sf(data = top5state_map, color = "red", size = .75) + 
+  geom_sf(data = usboundaries_com) +
+  geom_sf(data = cities_big, color = "green", size = 1) + 
+  ggthemes::theme_map() +
+  ggrepel::geom_label_repel(
+    data = top5state_map, 
+    aes(label = city, geometry = geometry), 
+    stat = "sf_coordinates", 
+    size = 3) + 
+  labs(title ="City Distances to the Nearest State Line",
+       caption = "Notice they are all in the center of Texas, the largest state in the conterminous US.") +
+  theme(legend.position = "right")
+```
+
+Each dot is representative of one city. Grey dots are closer to state lines while purple dots are further from state lines. Red dots are the cities that are the furthest from a state line.  Green dots are the cities with the largest population in each state and the more cyan these major cities are, the further they are from a state border. 
+
+#### Equidistant boundary from Mexico to Canada
+Here we have to mutate the distances using an absolute value (you'll see why in the code). We have to find all the cities that are equal distant from both the Canadian and Mexican border. This should highlight all the cities in the center of the US. 
+```{r}
+km_100eqd = cities %>% 
+  mutate(km100 = abs(dist_to_can - dist_to_mex))
+
+big_cities_100km = km_100eqd %>%
+  filter(km100 <= 100) %>% 
+  slice_max(population, n=5)
+
+ggplot() + 
+  geom_sf(data = km_100eqd, aes(col = km100), size = .3) +
+  geom_sf(data = usboundaries_com) +
+  gghighlight(km100 <= 100) +
+  scale_color_gradient(low = "blue", high = "red") + 
+  labs(title ="Cities with in the 100 km Center",
+       caption = "Cities highlighted are with in 100 km of the center of both land borders. The 5 most populous cities are labeled.") + 
+  theme_map() +
+  ggrepel::geom_label_repel(
+    data = big_cities_100km, 
+    aes(label = city, geometry = geometry), 
+    stat = "sf_coordinates", 
+    size = 3)
+```
+
+The more blue the cities are, the closer they are to the center of both the Canadian and Mexican borders.
 
 ```{r}
 ggplot() + 
-  geom_sf(data = cities, aes(col = dist_to_bor), size = .1) + 
-  geom_sf(data = wldboundaries_com) +
-  geom_sf(data = cities_big, color = "blue") + 
-  geom_sf(data = cities_160km, color = "red") + 
-  scale_color_gradient(low = "red2", high = "white") + 
-  ggthemes::theme_map()
+  geom_sf(data = wldboundaries_un) +
+  geom_sf(data = usboundaries_com) +
+  geom_sf(data = cities_160km, color = "red", size = .75) + 
+  geom_sf(data = cities_big, color = "steelblue") + 
+  geom_sf(data = big_cities_160km, color = "green") + 
+  scale_color_gradient(low = "grey", high = "purple") + 
+  labs(title ="Cities with in the 100 mile border zone",
+       caption = "The red dots on the map represent cities with in the 100 mile border zone. Green dots are these same major cities, but those that fall with in the 100 mile radius.") 
+```
+
+```{r, message=FALSE, echo=FALSE}
+#+ 
+#  ggthemes::theme_map() +
+#  ggrepel::geom_label_repel(
+#    data = big_cities_160km, 
+#    aes(label = city, geometry = geometry), 
+#    stat = "sf_coordinates", 
+#    size = 3)
+```
+Our 4th amendment protects us from random searches and seizures by the police. However, this was amended to exclude any persons living within 100 miles of a border. In this 100-mile zone, Border Patrol agents have certain additional authorities. For instance, Border Patrol can operate immigration checkpoints. Border Patrol, nevertheless, cannot pull anyone over without "reasonable suspicion" of an immigration violation or crime (reasonable suspicion is more than just a "hunch"). Similarly, Border Patrol cannot search vehicles in the 100-mile zone without a warrant or "probable cause" (a reasonable belief, based on the circumstances, that an immigration violation or crime has likely occurred). In practice, Border Patrol agents routinely ignore or misunderstand the limits of their legal authority in the course of individual stops, resulting in violations of the constitutional rights of innocent people. These problems are compounded by inadequate training for Border Patrol agents, a lack of oversight by CBP and the U.S. Department of Homeland Security, and the consistent failure of CBP to hold agents accountable for abuse. No matter what CBP officers and Border Patrol agents think, our Constitution applies throughout the United States, including within this “100-mile border zone.” More information can be found [here](https://www.aclu.org/other/constitution-100-mile-border-zone). This is a list of all the major cities that fall with in this zone:
+```{r, message=FALSE, echo=FALSE}
+#kable which cities are in the zone
 ```
