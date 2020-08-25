@@ -8,20 +8,20 @@ output:
 ---
 ## Libraries
 ### SPDS
-```{r, include=FALSE, message=FALSE}
+```{r, message=FALSE}
 library(tidyverse)
 library(sf)
 library(units)
 ```
 
 ### Data
-```{r, include=FALSE, message=FALSE}
+```{r, message=FALSE}
 library(USAboundaries)
 library(rnaturalearth)
 ```
 
 ### Visualization
-```{r, include=FALSE, message=FALSE}
+```{r, message=FALSE}
 library(gghighlight)
 library(ggrepel)
 library(ggthemes)
@@ -144,10 +144,10 @@ cities_big = cities %>%
 cities_160km = cities %>% 
   group_by(state_name) %>% 
   filter(dist_to_bor <= 160.934 | dist_to_can <= 160.934 | dist_to_mex <= 160.934) %>% 
-  ungroup
+  ungroup()
 
 big_cities_160km = cities_160km %>% 
-    group_by(state_name) %>% 
+  group_by(state_name) %>% 
   slice_max(population, n=1) %>% 
   ungroup()
 ```
@@ -159,7 +159,7 @@ top5far_cites = cities %>%
   select(city, state_name, dist_to_bor) %>% 
   st_drop_geometry()
 
-table10 = kable(top5far_cites,
+table1 = kable(top5far_cites,
              col.names = c("City", "State", "Distance from Border"),
              caption = "Top 5 Cities Furthest from any Border") %>% 
          kable_styling(bootstrap_options = "striped", full_width = F)
@@ -177,7 +177,6 @@ table2 = kable(top5state_cites,
              col.names = c("City", "State", "Distance from a State Border"),
              caption = "Top 5 Cities Furthest from a State Border") %>% 
          kable_styling(bootstrap_options = "striped", full_width = F)
-
 ```
 
 #### Distance to Mexico Border
@@ -210,7 +209,7 @@ table4 = kable(top5can_cites,
 
 #### All table results
 ```{r}
-table10
+table1
 table2
 table3
 table4
@@ -225,7 +224,7 @@ cities_top10 = cities %>%
   slice_max(population, n=10)
 
 ggplot()+
-  geom_sf(data = cities_top10, color = "blue", size = 1.5, ) + 
+  geom_sf(data = cities_top10, color = "blue", size = 1.5) + 
   geom_sf(data = usboundaries_com) + 
   ggthemes::scale_colour_economist() + 
   ggrepel::geom_label_repel(
@@ -257,8 +256,8 @@ ggplot() +
     aes(label = city, geometry = geometry),
     stat = "sf_coordinates",
     size = 3) + 
-  labs(title = "City Distances from a Coastal Border",
-       caption = "Showing cities furthest from a Coastal border")
+  labs(title = "City Distances from any Border",
+       caption = "Showing cities furthest from any border")
 ```
 
 #### City distance from a State Border
@@ -274,7 +273,6 @@ ggplot() +
   scale_color_gradient(low = "gray", high = "blue") +
   geom_sf(data = top5state_map, color = "red", size = 1) + 
   geom_sf(data = usboundaries_com) +
-  geom_sf(data = cities_big, color = "green", size = 1) + 
   ggthemes::theme_map() +
   ggrepel::geom_label_repel(
     data = top5state_map, 
@@ -300,9 +298,9 @@ big_cities_100km = km_100eqd %>%
 
 ggplot() + 
   geom_sf(data = km_100eqd, aes(col = km100), size = .3) +
+  scale_color_gradient(low = "blue", high = "red") +
   geom_sf(data = usboundaries_com) +
   gghighlight(km100 <= 100) +
-  scale_color_gradient(low = "blue", high = "red") + 
   labs(title ="Cities with in the 100 km Center",
        caption = "Cities highlighted are with in 100 km of the center of both land borders. The 5 most populous cities are labeled.") + 
   theme_map() +
@@ -314,29 +312,72 @@ ggplot() +
 ```
 
 The more blue the cities are, the closer they are to the center of both the Canadian and Mexican borders.
+# Question 4
+#### How many cities are in this 100 mile zone? (100 miles ~ 160 kilometers)
+There are 10,163 cities in the 100 mile danger zone. 
+
+#### How many people live in a city within 100 miles of the border?
 
 ```{r}
+popcount = cities_160km %>%
+  st_drop_geometry %>% 
+  summarise(population) %>% 
+  sum()
+
+popcount
+```
+There are 227,369,789 people living in the 100 mile danger zone. 
+
+#### What percentage of the total population is in this zone?
+There are an estimated 328.2 million people in the USA as of 2019.
+```{r}
+percent = popcount/328200000
+
+percent
+```
+About 69% of the population lives within the 100 mile danger zone (2/3 is 67%) 
+
+#### Does it match the ACLU estimate in the link above?
+ACLU reports about 2/3s of the population. This is 67% as stated previously. We calculated that 69% of the population lives in this zone. This means ACLU has a 2% data error, which is scientifically acceptable.
+
+```{r}
+tablesub = data.frame(num_cities = 10163,
+                      pop = popcount,
+                      per = percent,
+                      match = TRUE)
+
+kabletab = kable(tablesub,
+             col.names = c("Number of Cities", "Total Population", "Percent", "Match to ACLU"),
+             caption = "Comparison to ACLU") %>% 
+           kable_styling(bootstrap_options = "striped", full_width = F)
+
+kabletab
+```
+
+
+```{r}
+dgzn = cities_160km %>% 
+  group_by(state_name) %>% 
+  slice_max(population, n=1) %>% 
+  ungroup()
+
 ggplot() + 
   geom_sf(data = wldboundaries_un) +
   geom_sf(data = usboundaries_com) +
   geom_sf(data = cities_160km, color = "red", size = .75) + 
-  geom_sf(data = cities_big, color = "steelblue") + 
   geom_sf(data = big_cities_160km, color = "green") + 
-  scale_color_gradient(low = "grey", high = "purple") + 
   labs(title ="Cities with in the 100 mile border zone",
-       caption = "The red dots on the map represent cities with in the 100 mile border zone. Green dots are these same major cities, but those that fall with in the 100 mile radius.") 
+       caption = "The red dots on the map represent cities with in the 100 mile border zone. Green dots are these same major cities, but those that fall with in the 100 mile radius.") + 
+  ggthemes::theme_map() +
+  ggrepel::geom_label_repel(
+    data = dgzn, 
+    aes(label = city, geometry = geometry), 
+    stat = "sf_coordinates", 
+    size = 3)
 ```
 
 ```{r, message=FALSE, echo=FALSE}
-#+ 
-#  ggthemes::theme_map() +
-#  ggrepel::geom_label_repel(
-#    data = big_cities_160km, 
-#    aes(label = city, geometry = geometry), 
-#    stat = "sf_coordinates", 
-#    size = 3)
+
 ```
 Our 4th amendment protects us from random searches and seizures by the police. However, this was amended to exclude any persons living within 100 miles of a border. In this 100-mile zone, Border Patrol agents have certain additional authorities. For instance, Border Patrol can operate immigration checkpoints. Border Patrol, nevertheless, cannot pull anyone over without "reasonable suspicion" of an immigration violation or crime (reasonable suspicion is more than just a "hunch"). Similarly, Border Patrol cannot search vehicles in the 100-mile zone without a warrant or "probable cause" (a reasonable belief, based on the circumstances, that an immigration violation or crime has likely occurred). In practice, Border Patrol agents routinely ignore or misunderstand the limits of their legal authority in the course of individual stops, resulting in violations of the constitutional rights of innocent people. These problems are compounded by inadequate training for Border Patrol agents, a lack of oversight by CBP and the U.S. Department of Homeland Security, and the consistent failure of CBP to hold agents accountable for abuse. No matter what CBP officers and Border Patrol agents think, our Constitution applies throughout the United States, including within this “100-mile border zone.” More information can be found [here](https://www.aclu.org/other/constitution-100-mile-border-zone). This is a list of all the major cities that fall with in this zone:
-```{r, message=FALSE, echo=FALSE}
-#kable which cities are in the zone
-```
+
