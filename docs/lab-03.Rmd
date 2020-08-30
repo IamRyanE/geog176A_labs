@@ -225,7 +225,7 @@ cities_top10 = cities %>%
 
 ggplot()+
   geom_sf(data = cities_top10, color = "blue", size = 1.5) + 
-  geom_sf(data = usboundaries_com) + 
+  geom_sf(data = wldboundaries_com) +
   ggthemes::scale_colour_economist() + 
   ggrepel::geom_label_repel(
     data = cities_top10,
@@ -249,7 +249,7 @@ I'm assuming this is meant to be distance to an oceanic border, if not simply ch
 ggplot() +
   geom_sf(data = cities, aes(col = dist_to_bor), size = .3) + 
   geom_sf(data = top5far_map, color = "red", size = 1) + 
-  geom_sf(data = usboundaries_com) + 
+  geom_sf(data = usboundaries_un) + 
   scale_color_gradient(low = "grey", high = "blue") + 
   ggrepel::geom_label_repel(
     data = top5far_map,
@@ -272,7 +272,7 @@ ggplot() +
   geom_sf(data = cities, aes(col = dist_to_state), size = .3) + 
   scale_color_gradient(low = "gray", high = "blue") +
   geom_sf(data = top5state_map, color = "red", size = 1) + 
-  geom_sf(data = usboundaries_com) +
+  geom_sf(data = usboundaries_un) +
   ggthemes::theme_map() +
   ggrepel::geom_label_repel(
     data = top5state_map, 
@@ -304,7 +304,7 @@ ggplot() +
   labs(title ="Cities with in the 100 km Center",
        caption = "Cities highlighted are with in 100 km of the center of both land borders. The 5 most populous cities are labeled.") + 
   theme_map() +
-  ggrepel::geom_label_repel(
+  geom_label_repel(
     data = big_cities_100km, 
     aes(label = city, geometry = geometry), 
     stat = "sf_coordinates", 
@@ -364,8 +364,8 @@ dgzn = cities_160km %>%
 ggplot() + 
   geom_sf(data = wldboundaries_un) +
   geom_sf(data = usboundaries_com) +
-  geom_sf(data = cities_160km, color = "red", size = .75) + 
-  geom_sf(data = big_cities_160km, color = "green") + 
+  geom_sf(data = cities_160km, size = .75, color = "red") + 
+  geom_sf(data = big_cities_160km, color = "green") +
   labs(title ="Cities with in the 100 mile border zone",
        caption = "The red dots on the map represent cities with in the 100 mile border zone. Green dots are these same major cities, but those that fall with in the 100 mile radius.") + 
   ggthemes::theme_map() +

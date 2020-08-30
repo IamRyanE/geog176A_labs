@@ -1,0 +1,271 @@
+---
+title: "Geography 176A"
+author: "[Ryan Erickson](https://github.com/IamRyanE)"
+subtitle: 'Lab 04: Distances and the Border Zone'
+output:
+  html_document:
+    theme: journal
+---
+
+# Libraries
+
+### Functions
+```{r}
+source("../R/utils.R")
+```
+
+### SPDS
+```{r, message=FALSE}
+library(tidyverse)
+library(sf)
+library(units)
+library(leaflet)
+```
+
+### Data
+```{r, message=FALSE}
+library(USAboundaries)
+library(rnaturalearth)
+library(readxl)
+```
+
+### Visualization
+```{r, message=FALSE}
+library(gghighlight)
+library(ggrepel)
+library(ggthemes)
+library(knitr)
+library(kableExtra)
+library(rmapshaper)
+```
+
+## Question 1: Tesselation of Surfaces
+
+#### Step 1.1
+Getting CONUS States (without function)
+```{r}
+conus = USAboundaries::us_counties() %>% 
+  filter(!state_name %in% c("Hawaii", "Puerto Rico", "Alaska",
+             "Guam", "District of Columbia")) %>% 
+  st_transform(5070)
+```
+ 
+#### Step 1.2
+```{r}
+conus_cent = conus %>% 
+  st_centroid() %>% 
+  st_combine()
+
+conus_un = conus %>% 
+  st_union() %>% 
+  ms_simplify(keep = .05)
+```
+
+#### Step 1.3 & Step 1.4 & 1.5
+```{r}
+conus_vor = conus_cent %>% #1.3
+  st_voronoi() %>% 
+  st_cast() %>% 
+  st_as_sf() %>%
+  mutate(id = 1:n()) %>% 
+  st_intersection(conus_un)
+  
+conus_tri = conus_cent %>% 
+  st_triangulate() %>% 
+  st_cast() %>% 
+  st_as_sf() %>%
+  mutate(id = 1:n()) %>% 
+  st_intersection(conus_un)
+
+conus_grd = conus_cent %>% 
+  st_make_grid(n = c(70,45)) %>% 
+  st_cast() %>% 
+  st_as_sf() %>%
+  mutate(id = 1:n()) %>% 
+  st_intersection(conus_un)
+
+conus_hex = conus_cent %>% 
+  st_make_grid(n = c(70,50), square = FALSE) %>% 
+  st_cast() %>% 
+  st_as_sf() %>% 
+  mutate(id = 1:n()) %>% 
+  st_intersection(conus_un)
+```
+
+#### Step 1.6 - FUNCTION JUNCTION
+```{r}
+plot_tes = function(arg1, title){
+  ggplot() + 
+    geom_sf(data = arg1, col = "white", size = .2) + 
+    theme_void() + 
+    theme(legend.position = 'none',
+          plot.title = element_text(face = "bold", color = "darkblue", hjust = .5, size = 24)) +
+    labs(title = paste0(title),
+         caption = paste0(nrow(arg1), " features"))
+}
+```
+
+#### Step 1.7
+```{r}
+plot_tes(conus, "Original")
+plot_tes(conus_vor, "Voroni")
+plot_tes(conus_tri, "Triangualtion")
+plot_tes(conus_grd, "Square")
+plot_tes(conus_hex, "Hexegonal")
+```
+
+# Question 2
+#### Step 2.1 - FUNCTION JUNCTION PART 2
+```{r}
+sum_tes = function(arg1, string){
+  
+  newframe = arg1 %>% 
+    mutate(area = st_area(arg1)) %>% 
+    drop_units() %>% 
+    mutate(area = area*0.000001)
+
+  dataframe = data.frame(type = string,
+                num_feat = nrow(newframe),
+                mean_area = mean(newframe$area),
+                st_dev = sd(newframe$area),
+                tot_area = sum(newframe$area))
+ 
+  return(dataframe)
+}
+```
+
+#### Step 2.2
+```{r}
+sum_tes(conus, "original")
+sum_tes(conus_vor, "voronoi")
+sum_tes(conus_tri, "triangualtion")
+sum_tes(conus_grd, "square grid")
+sum_tes(conus_hex, "hexegonal")
+```
+
+#### Step 2.3
+```{r}
+tess_summary = bind_rows(
+  sum_tes(conus, "original"),
+  sum_tes(conus_vor, "voronoi"),
+  sum_tes(conus_tri, "triangualtion"),
+  sum_tes(conus_grd, "square grid"),
+  sum_tes(conus_hex, "hexegonal"))
+```
+
+#### Step 2.4
+```{r}
+kable(tess_summary,
+             col.names = c("Type", "Number of Features", "Mean Area", "St. Dev", "Total Area"),
+             caption = "Summary of Our 5 Tesselations") %>% 
+           kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+#### Step 2.5
+Describe the differences in each tessellation (original, voronoi, triangulation, etc). Which tessellation would be best for a MAUP? Which tessellation would be the easiest to compute? If you wanted to accurately represent the US which would you choose?  
+
+# Question 3
+#### Step 3.1
+```{r, message = FALSE, results = FALSE, warning=FALSE}
+dam_data = read_excel("../data/NID2019_U.xlsx") %>% 
+  filter(!is.na(LATITUDE)) %>% 
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326) %>% 
+  st_transform(5070) %>% 
+  st_filter(conus_un)
+```
+
+#### Step 3.2
+```{r}
+point_in_polygon = function(points, polygon, nam){
+  st_join(polygon, points) %>% 
+    st_drop_geometry() %>% 
+    count(get(nam)) %>% 
+    setNames(c(nam, "n")) %>% 
+    left_join(polygon, by = nam) %>% 
+    st_as_sf()
+}
+```
+
+```{r}
+con_pip = point_in_polygon(dam_data, conus, "geoid")
+vor_pip = point_in_polygon(dam_data, conus_vor, "id")
+tri_pip = point_in_polygon(dam_data, conus_tri, "id")
+grd_pip = point_in_polygon(dam_data, conus_grd, "id")
+hex_pip = point_in_polygon(dam_data, conus_hex, "id")
+```
+
+```{r}
+plot_counts = function(arg1, title){
+ 
+   ggplot() + 
+    geom_sf(data = arg1, aes(fill = n), col = NA, size = .2) + 
+    viridis::scale_color_viridis() + 
+    theme_void() + 
+    theme(plot.title = element_text(face = "bold", color = "darkblue", hjust = .5, size = 24)) +
+    labs(title = paste0(title),
+         caption = paste0("Total number of dams present: ", sum(arg1$n)))
+}
+```
+
+#### Step 3.6
+```{r}
+plot_counts(con_pip, "Dams in US: Originial")
+plot_counts(vor_pip, "Dams in US: Voronoi")
+plot_counts(tri_pip, "Dams in US: Triangulation")
+plot_counts(grd_pip, "Dams in US: Square Grid")
+plot_counts(hex_pip, "Dams in US: Hexagonal Grid")
+```
+
+# Question 4
+#### Step 4.1
+```{r}
+unique(dam_data$PURPOSES) %>% length
+
+dam_data$PURPOSES[1:5]
+
+nid_classifier = data.frame(abbr = c("I","H","C","N","S","R","P","F","D","T","G","O"),
+                            purpose = c("Irrigation","Hydroelectric","Flood Control","Navigation","Water Supply","Recreation","Fire Protection","Fish and Wildlife","Debris Control","Tailings","Grade Stabilization","Other"))
+
+
+dam_freq <- strsplit(dam_data$PURPOSES, split = "") %>%
+  unlist() %>% 
+  table() %>% 
+  as.data.frame() %>% 
+  setNames(c("abbr", "count")) %>% 
+  left_join(nid_classifier) %>% 
+  mutate(lab = paste0(purpose, "\n(", abbr, ")"))
+```
+The above is just test code to see what Mike was talking about and to clarify more about the types of dams. Some dams can have multiple types, i.e a dam of FR type is a recreational type dam that is either protected by or used by the Fish and Wildlife Service. 
+
+Here we're going to choose our dams
+```{r}
+majorrivers = read_sf("../data/MajorRivers.dbf") %>% 
+  filter(SYSTEM == "Mississippi") %>%
+  mutate(STATE = c("AR", "MI", "MO", "OH")) %>% 
+  st_transform(4326)
+
+dams_of_interest = dam_data %>% 
+  filter(grepl("H", PURPOSES)) %>%
+  filter(DAM_NAME != "SOO LOCKS") %>% 
+  select(DAM_NAME, PURPOSES, NID_STORAGE, YEAR_COMPLETED, STATE) %>% 
+  st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs=4326) %>% 
+  st_transform(st_crs(majorrivers)) %>% 
+  group_by(STATE) %>% 
+  slice_max(NID_STORAGE, n=1) %>% 
+  ungroup()
+
+leaflet() %>% 
+  addProviderTiles(providers$CartoDB) %>% 
+  addPolylines(data = majorrivers) %>% 
+  addCircleMarkers(data = dams_of_interest,
+             fillColor  = ~colorQuantile("YlOrRd", NID_STORAGE)(NID_STORAGE),
+             color = NA,
+             fillOpacity = .5,
+             radius = ~NID_STORAGE / 1500000,
+             label = ~DAM_NAME,
+             popup = leafpop::popupTable(st_drop_geometry(dams_of_interest), feature.id = FALSE, row.numbers = FALSE)) %>% 
+  addMeasure() %>% 
+  leafem::addMouseCoordinates() %>% 
+  leafem::addHomeButton(group = "Missouri")
+```
+
