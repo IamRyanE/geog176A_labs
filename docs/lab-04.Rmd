@@ -20,6 +20,7 @@ library(tidyverse)
 library(sf)
 library(units)
 library(leaflet)
+library(leafem)
 ```
 
 ### Data
@@ -77,15 +78,15 @@ conus_tri = conus_cent %>%
   mutate(id = 1:n()) %>% 
   st_intersection(conus_un)
 
-conus_grd = conus_cent %>% 
-  st_make_grid(n = c(70,45)) %>% 
+conus_grd = conus %>% 
+  st_make_grid(n = c(70,70)) %>% 
   st_cast() %>% 
   st_as_sf() %>%
   mutate(id = 1:n()) %>% 
   st_intersection(conus_un)
 
-conus_hex = conus_cent %>% 
-  st_make_grid(n = c(70,50), square = FALSE) %>% 
+conus_hex = conus %>% 
+  st_make_grid(n = c(70,70), square = FALSE) %>% 
   st_cast() %>% 
   st_as_sf() %>% 
   mutate(id = 1:n()) %>% 
@@ -170,7 +171,7 @@ Describe the differences in each tessellation (original, voronoi, triangulation,
 dam_data = read_excel("../data/NID2019_U.xlsx") %>% 
   filter(!is.na(LATITUDE)) %>% 
   st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4326) %>% 
-  st_transform(5070) %>% 
+  st_transform(5070) %>%
   st_filter(conus_un)
 ```
 
@@ -199,7 +200,7 @@ plot_counts = function(arg1, title){
  
    ggplot() + 
     geom_sf(data = arg1, aes(fill = n), col = NA, size = .2) + 
-    viridis::scale_color_viridis() + 
+    viridis::scale_fill_viridis(option = "B") + 
     theme_void() + 
     theme(plot.title = element_text(face = "bold", color = "darkblue", hjust = .5, size = 24)) +
     labs(title = paste0(title),
@@ -217,7 +218,6 @@ plot_counts(hex_pip, "Dams in US: Hexagonal Grid")
 ```
 
 # Question 4
-#### Step 4.1
 ```{r}
 unique(dam_data$PURPOSES) %>% length
 
@@ -234,6 +234,9 @@ dam_freq <- strsplit(dam_data$PURPOSES, split = "") %>%
   setNames(c("abbr", "count")) %>% 
   left_join(nid_classifier) %>% 
   mutate(lab = paste0(purpose, "\n(", abbr, ")"))
+
+dams_of_interestante = dam_data %>% 
+  filter(grepl("F", PURPOSES))
 ```
 The above is just test code to see what Mike was talking about and to clarify more about the types of dams. Some dams can have multiple types, i.e a dam of FR type is a recreational type dam that is either protected by or used by the Fish and Wildlife Service. 
 
@@ -245,14 +248,14 @@ majorrivers = read_sf("../data/MajorRivers.dbf") %>%
   st_transform(4326)
 
 dams_of_interest = dam_data %>% 
-  filter(grepl("H", PURPOSES)) %>%
-  filter(DAM_NAME != "SOO LOCKS") %>% 
+  filter(grepl("C", PURPOSES), HAZARD == "H") %>%
   select(DAM_NAME, PURPOSES, NID_STORAGE, YEAR_COMPLETED, STATE) %>% 
   st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs=4326) %>% 
   st_transform(st_crs(majorrivers)) %>% 
   group_by(STATE) %>% 
   slice_max(NID_STORAGE, n=1) %>% 
   ungroup()
+
 
 leaflet() %>% 
   addProviderTiles(providers$CartoDB) %>% 
@@ -261,11 +264,12 @@ leaflet() %>%
              fillColor  = ~colorQuantile("YlOrRd", NID_STORAGE)(NID_STORAGE),
              color = NA,
              fillOpacity = .5,
-             radius = ~NID_STORAGE / 1500000,
+             radius = ~sqrt(NID_STORAGE) / 175 ,
              label = ~DAM_NAME,
              popup = leafpop::popupTable(st_drop_geometry(dams_of_interest), feature.id = FALSE, row.numbers = FALSE)) %>% 
   addMeasure() %>% 
-  leafem::addMouseCoordinates() %>% 
-  leafem::addHomeButton(group = "Missouri")
+  leafem::addMouseCoordinates()
+
 ```
+
 

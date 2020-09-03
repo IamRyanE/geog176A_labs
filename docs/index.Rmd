@@ -13,5 +13,5 @@ This is a collection of labs I've done while helping out with a class. The class
 
 [Lab 3](https://iamryane.github.io/geog176A_labs/lab-03.html)
 
-[Lab 4]()
+[Lab 4](https://iamryane.github.io/geog176A_labs/lab-03.html)
 </center>
