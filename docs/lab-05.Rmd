@@ -92,7 +92,9 @@ My Choice
 plotRGB(r, r=1 ,g=3 ,b=6, stretch= "lin")
 plotRGB(r, r=1 ,g=3 ,b=6, stretch= "hist")
 ```
-Stretching determines how the values are represented on the image. Histogram stretching tends to be lighter, while linear stretching seems to be more discernible. 
+
+Stretching determines how the values are represented on the image. Histogram stretching tends to be lighter, while linear
+stretching seems to be more discernible. 
 
 # Question 4
 Creating the 5 different masks

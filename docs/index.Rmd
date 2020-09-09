@@ -1,11 +1,11 @@
+---
+title: "Lab Home Page"
+author: "[Ryan Erickson](https://iamryane.github.io/RyanE/)"
+---
+
 ```{r, message=FALSE, include=FALSE}
 library(icon)
 ```
-
----
-title: "Lab Home Page"
-icon: fa-flask
----
 
 # Hello, and welcome to my Lab Webpage. 
 
@@ -35,6 +35,10 @@ Things to change:
 
 Testing how the summary of each lab would look
 
-## [Lab 4](https://iamryane.github.io/geog176A_labs/lab-03.html)
+## [Lab 4](https://iamryane.github.io/geog176A_labs/lab-04.html)
+
+## [Lab 5](https://iamryane.github.io/geog176A_labs/lab-05.html)
+
+Add some description
 
 </center>
