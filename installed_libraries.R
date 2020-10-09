@@ -3,6 +3,7 @@
 install.packages("rgdal")
 install.packages("ggthemes")
 install.packages("kableExtra")
+install.packages("getlandsat")
 
 
 remotes::install_github("ropensci/USAboundaries")

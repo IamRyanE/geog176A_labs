@@ -1,0 +1,376 @@
+---
+title: "Geography 176A"
+date: "Lab 06"
+subtitle: 'Flood Risk in Mission Creek: Past, Present, Future'
+output:
+  html_document:
+    theme: spacelab
+    toc: true  
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, out.width = "75%", eval = FALSE, fig.align = 'center')
+```
+
+# Background
+
+Mission Creek runs from Rattle Snake Canyon, through Santa Barbara, and drains into the water front near Stearns Wharf. 
+It has a USGS gaging location situated  ~$\frac{1}{3}$ up the mainstem.
+
+In the past two decades this basin has flooded on numerous occasions causing damage along State Street and the surrounding neighborhoods.
+
+Below is a map sharing a collection of videos and images from the 1995, 1998 and 2017 flood events.
+
+```{r, eval = TRUE, out.width="100%"}
+library(sf)
+library(leaflet)
+library(dplyr)
+
+usgsIcon = makeIcon(
+      iconUrl = "https://upload.wikimedia.org/wikipedia/commons/0/08/USGS_logo.png",
+      iconWidth = 40,
+      iconHeight = 20,
+      iconAnchorX = 20,
+      iconAnchorY = 10
+    )
+
+gage  = 11119750 
+base  = "https://labs.waterdata.usgs.gov/api/nldi/linked-data/nwissite/USGS-"
+basin = read_sf(paste0(base, gage,"/basin/"))
+
+riv = read_sf("data/river.shp")
+
+pt = st_as_sf(x = data.frame(x = -119.687886, y = 34.466766), 
+              coords = c("x", "y"), crs = 4326) %>% 
+              mutate(url = '<iframe width="300" src="https://www.youtube.com/embed/DfkgMDc-oss" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>')
+pt2 = st_as_sf(x = data.frame(x =-119.69404, y = 34.41384), 
+               coords = c("x", "y"), crs = 4326) %>% 
+              mutate(url = 'https://sbbucketbrigade.org/wp-content/uploads/2019/12/mission-creek.jpg')
+pt3 = st_as_sf(x = data.frame(x = -119.69291, y = 34.41346), 
+               coords = c("x", "y"), crs = 4326) %>% 
+              mutate(url = 'https://sbbucketbrigade.org/wp-content/uploads/2019/12/1998Flooding-Mission-crk-copy.jpg')
+
+gage = st_as_sf(x = data.frame(x = -119.7252778, y = 34.4275), 
+               coords = c("x", "y"), crs = 4326) %>% 
+              mutate(url = '<a href="https://waterdata.usgs.gov/monitoring-location/11119750">USGS Gage</a>')
+
+leaflet() %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>% 
+  addPolylines(data = basin,  color = "black") %>% 
+  addPolylines(data = riv, color = "navy") %>% 
+  addMarkers(data = pt3, popup  = ~leafpop::popupImage(url)) %>% 
+  addMarkers(data = pt, popup  = ~url) %>%
+  addMarkers(data = pt2, popup  = ~leafpop::popupImage(url)) %>% 
+  addMarkers(data = gage, popup  = ~url, icon = usgsIcon)
+```
+
+
+In this lab you will build a partial or full (depending if you attempt the Extra Credit) Flood Inundation Map (FIM) Library for the Mission Creek Basin. More importantly, this lab is the summation of [geography 176A](https://mikejohnson51.github.io/spds/) and will focus of four key tasks:
+
+1. Finding and bringing data into R using Web APIs
+2. Aligning retrieved object and field data
+3. Preparing terrain data for analysis
+4. Carrying out a simple, multi-data structure (raster/vector) analysis.
+
+The skills we have been indirectly practicing all quarter including  project structure and file path management will be critical here.
+
+## Libraries
+
+Attach your needed libraries:
+
+```{r, echo = TRUE}
+library(sf)        # vector manipulation
+library(raster)    # raster manipulation
+library(fasterize) # "faster" raster
+library(whitebox)  # terrain analysis
+
+# Data libraries
+library(osmdata)   # OSM API
+library(elevatr)   # Elevation  Web Tiles
+```
+
+## Flooding Jargon 
+
+- **stage** = height of the water in a channel
+
+- **streamflow** = the rate of water flowing in a channel
+
+- **basin** = an area in which all cells contribute to a common outlet (an area or ridge of land that separates waters flowing to different rivers, basins, or seas)
+
+- **flowpath** = the linear path over which water flows (river)
+
+- **HAND**  = Height Above Nearest Drainage, "*how high is a cell above its nearest river cell?*"
+
+
+# Collecting Data
+
+Your job is to estimate the number of buildings impacted in the 2017 Mission Creek flood event using the Height Above Nearest Drainage Flood mapping methodology which is currently being explored by NOAA as an operational flood mapping technique for CONUS. 
+
+Recently research into this technique has accelerated ([1](https://nhess.copernicus.org/articles/19/2405/2019/), [2](https://onlinelibrary.wiley.com/doi/full/10.1111/1752-1688.12660), [3](https://agupubs.onlinelibrary.wiley.com/doi/full/10.1029/2019WR024837)) and been awarded several multi-million dollar grants to advance ([1](https://ladailypost.com/noaa-awards-grants-to-small-businesses-developing-technology/), [2](https://ufokn.github.io/UFOKN/)). These projects focus on enhancing HAND forecasts with satellite imagery (particularly Sentinel 2) and on extending flood forecasts to impact assessments  by interrelating feature (like OSM) and raster products.
+
+The first part of the lab is collecting the data needed for the analysis. This includes representations of the elevation grid, the river network, and building structures.
+
+### Basin boundary
+
+HAND is a watershed focused analysis, therefore we need the boundaries of a local basin to define our AOI.
+
+Use the [Network Linked Data Index (NLDI](https://waterdata.usgs.gov/blog/nldi-intro/) to identify the basin associated with the USGS gage: `USGS-11119750`. 
+
+Remember that basin boundaries can be accessed from the NLDI using the following  URL pattern:
+
+`https://labs.waterdata.usgs.gov/api/nldi/linked-data/nwissite/USGS-**SITEIDHERE**/basin`
+
+Where you fill in the **SITEIDHERE** with the appropriate gage ID.
+
+The geojson stored at that URL can then be read directly into R (as a simple feature object) using `read_sf()`.
+
+Go ahead and load the basin into your working session.
+
+```{r}
+gage  = 11119750 
+base  = "https://labs.waterdata.usgs.gov/api/nldi/linked-data/nwissite/USGS-"
+basin = read_sf(paste0(base, gage,"/basin/"))
+```
+
+### Elevation Data
+
+Once you have the basin boundary, get elevation data using `elevatr` and a zoom level of 13. Once returned,
+
+  - **crop/mask** the elevation data to the basin boundary and convert elevation values from meters to feet (1m = 3.281 feet)
+  
+  - **Write** the raster to your `data` folder as a `tif` file (use `writeRaster`)
+
+```{r}
+elev  = get_elev_raster(basin, z = 13) %>%
+  crop(basin) %>%
+  mask(basin)
+
+elev_ft = elev * 3.281
+
+writeRaster(elev_ft, filename = "../data/goleta-creek-elev.tif", overwrite = TRUE)
+```
+
+### Buildings and river-network data
+
+
+````{r}
+q = opq(basin)
+building =  add_osm_feature(q, "building") %>% osmdata_sf()
+water = add_osm_feature(q, "waterway", "stream")  %>% osmdata_sf()
+
+build = st_centroid(building$osm_polygons) %>% st_intersection(basin)
+
+railroad = dplyr::filter(build, amenity == "railway")
+
+riv =  st_intersection(water$osm_lines, basin)
+
+#sf::write_sf(riv ,"data/river.shp")
+```
+
+# Terrain Analysis
+
+### Hillshade
+
+
+```{r}
+wbt_hillshade("../data/goleta-creek-elev.tif", 
+              "../data/goleta-creek-hill.tif",
+              zfactor = 0.00000316)
+
+hillshade = raster("../data/goleta-creek-hill.tif")
+
+par(mar=c(0,0,0,0))
+plot(hillshade, col = gray.colors(256, alpha = .5), legend = FALSE, box = FALSE, axes = FALSE)
+plot(basin$geometry, add = TRUE)
+plot(riv$geometry, col = "navy", add = TRUE)
+```
+
+#### Creating the river raster
+
+
+```{r}
+utf = st_transform(riv, 5070) %>%
+  st_buffer(10) %>%
+  st_transform(crs(elev_ft)) %>% 
+  fasterize(elev_ft)
+
+writeRaster(utf, filename = "../data/river.tif", overwrite = TRUE)
+```
+
+#### Creating the hydrologically corrected surface
+
+
+```{r}
+wbt_breach_depressions("../data/goleta-creek-elev.tif",  "../data/goleta-creek-b.tif")
+```
+
+
+#### Creating the HAND raster
+
+
+```{r}
+wbt_elevation_above_stream("../data/goleta-creek-b.tif", "../data/river.tif", '../data/hand.tif')
+```
+
+
+### Correcting to local reference datum
+
+
+```{r}
+h = raster('../data/hand.tif')
+r = raster('../data/river.tif')
+h = h + 3.69
+h[r == 1] = 0
+writeRaster(h, "../data/hand-corrected.tif", overwrite = TRUE)
+```
+
+# 2017 Impact Assessment
+
+### Map the flood
+ 
+### Estimate the impacts
+
+```{r}
+h = raster("../data/hand-corrected.tif")
+tmp = h
+tmp[tmp >= 10.02] = NA
+cols = ifelse(!is.na(raster::extract(tmp, build)), "red", "black")
+
+plot(hillshade, col = gray.colors(256, alpha = .5),  legend = FALSE, 
+         main = paste0(sum(cols == "red"), " impacted buildings, 10.02 foot stage"))
+
+    plot(tmp, col = rev(blues9), legend = FALSE, add = TRUE)
+    
+    plot(build$geometry, add = TRUE, pch = 16, cex = .06, col = cols)
+    
+    plot(railroad$geometry, col = "green", pch = 16, add = TRUE)
+    
+    plot(basin$geometry, add = TRUE, border = "black")
+```
+
+
+# Flood Inudation Map library
+
+> This part is extra credit
+
+[Flood Inundation Map libraries](https://www.usgs.gov/mission-areas/water-resources/science/flood-inundation-map-fim-libraries?qt-science_center_objects=0#qt-science_center_objects) help communities apply real-time stream data and National Weather Service flood forecasts to form a two-dimensional flood warning system. These 2D warning systems help estimate the extent of a flood and identify at-risk areas and resources in advance of floodwaters arriving.
+
+***
+
+You have been asked to create a FIM library for Mission Creek for stage values ranging from 0 to 20 feet. You have also been asked to animate this library as a GIF file showing the hillshade, flood level, and impacted buildings for each stage.
+
+Last, the city is interested in zooming in on the lower portion of the basin contained within the "Santa Barbara" bounding box (defined in OSM). You can get this boundary using the `AOI` package:
+
+```{r echo = TRUE, eval = TRUE}
+(sb = AOI::aoi_get("Santa Barbara"))
+```
+
+***
+
+Once you have your AOI:
+
+- `crop/clip` the basin, HAND raster, and Hillshade raster to the  AOI extent
+- Generate/animate to your FIM library by placing the plot from above within the `gifski` function (see below) 
+ 
+```{r, echo = TRUE}
+gifski::save_gif({
+  for(i in 0:20) {
+    ...
+  }
+}, gif_file = "data/mission-creek-fim.gif",
+   width = 600, height = 600, 
+   delay = .7, loop = TRUE)
+```
+
+This function skeleton loops over the stage values 0 to 20 
+
+  - Fill in the '...' with your plotting code making sure it reacts to the incoming stage value `i`
+  
+  - For each stage i
+      - Generate a new flood map
+      - Identify the impacted buildings
+      - Map the hillshade, floodmap, buildings, train station, and basin boundary following the same guidlines as above
+      - The plot title should also update describing the number of impacted buildings and the stage being shown
+
+- Make sure your gif code is not run when knit by setting the r chunk to `eval = FALSE`sum
+- Run the code yourself to generate `data/mission-creek-fim.gif`
+- Place `data/mission-creek-fim.gif` in the knit document as an image
+
+```{r}
+h = raster("data/hand-corrected.tif")
+bas2 = st_intersection(basin, sb)
+hill2 = crop(hillshade, sb)
+h2 = crop(h, sb)
+
+gifski::save_gif({
+  for(t in 0:20) {
+    tmp = h2
+    tmp[tmp > t] = NA
+    cols = ifelse(!is.na(raster::extract(tmp, build)), "red", "black")
+    plot(hill2, col = gray.colors(256, alpha = .5),  legend = FALSE, 
+         main = paste0(sum(cols == "red"), " impacted buildings, ", t, " foot stage"))
+    plot(tmp, col = rev(blues9), legend = FALSE, add = TRUE)
+    plot(build$geometry, add = TRUE, pch = 16, cex = .25, col = cols)
+    plot(railroad$geometry, col = "green", pch = 16, add = TRUE)
+    plot(bas2$geometry, add = TRUE, border = "black")
+  }
+}, gif_file = "../data/tmp.gif", width = 600, height = 600, delay = .7, loop = TRUE)
+```
+
+
+Your final product should look like this:
+
+![](data/tmp.gif)
+
+> Why at 0 stage, are we capturing impacted buildings?
+
+****
+
+Congrats on a great, difficult quarter. You guys were able to do a tremendous amount over the course of six weeks. The highlights of your labs include:
+
+- Building your own personal webpage
+
+- Performing a partial COVID analysis similar to the [California Department of Public Health](https://covid19.ca.gov/safer-economy/)
+
+- Analyzing the impacted populations at the border zone, numbers that [drive policy and current events](https://www.justsecurity.org/65136/congress-tackles-the-100-mile-border-zone-for-federal-checkpoints/)
+
+- Completing a major, full scale dam analysis [similar to ongoing efforts](https://www.ussdams.org/our-news/americas-aging-dams-in-need-of-repair/) to monitor dam patterns and health in the USA.
+
+- Implementing a remote senseing based [flood analysis](https://earthobservatory.nasa.gov/images/88832/unseasonal-flooding-in-iowa) similar to those carried out by the NASA Earth Observatory
+
+- Constructing a complete (or partial) FIM library in the same way NOAA is trying to generalize the USA using the combined National Water Model - HAND method, and companies like Azavia, NSF, and [ESRI](https://www.esri.com/content/dam/esrisites/en-us/about/events/media/2019-nspss-pdf/NSPSS_36.pdf) are try to operationalize
+
+While many of these were water resource focused, the core of them is the combination of data science, vector, and raster data structures and the analysis these representations of space and measurement can offer.
+
+They concepts can be extended to any question of feild where data has location information.
+
+****
+
+# Rubric
+
+- [ ] **Question 1: Data Ingest** (10)
+- [ ] **Question 2: Terrain Analysis** (15)
+- [ ] **Question 3: 2017 Impact Assessment** (15)
+- [ ] **Extra Credit: FIM Library** (20)
+- [ ] **Well Structured and appealing Rmd deployed as web page** (10)
+
+**Total:** 50 points (70 total points)
+
+# Submission
+
+You will submit a URL to your web page deployed with GitHub pages.
+
+To do this:
+
+ - Knit your lab 6 document
+ - Stage/commit/push your files
+ - If you followed the naming conventions in the "Set Up" of lab 2, your lab 6 link will be available at: 
+ 
+`https://USERNAME.github.io/geog-176A-labs/lab-06.html`
+
+Submit this URL in the appropriate Gauchospace dropbox. 
+
+
+

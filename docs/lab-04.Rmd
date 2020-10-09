@@ -3,9 +3,12 @@ title: "Geography 176A"
 author: "[Ryan Erickson](https://github.com/IamRyanE)"
 subtitle: 'Lab 04: Distances and the Border Zone'
 output:
-  html_document:
-    theme: journal
+  rmdformats::readthedown:
+  highlight: tango
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "75%", fig.align = 'center')
+```
 
 # Libraries
 
@@ -40,7 +43,7 @@ library(kableExtra)
 library(rmapshaper)
 ```
 
-## Question 1: Tesselation of Surfaces
+# Question 1: Tesselation of Surfaces
 
 #### Step 1.1
 Getting CONUS States (without function)
@@ -115,7 +118,7 @@ plot_tes(conus_grd, "Square")
 plot_tes(conus_hex, "Hexegonal")
 ```
 
-# Question 2
+# Question 2 - Data Wrangling with Tesselations
 #### Step 2.1 - FUNCTION JUNCTION PART 2
 ```{r}
 sum_tes = function(arg1, string){
@@ -165,7 +168,7 @@ kable(tess_summary,
 #### Step 2.5
 Describe the differences in each tessellation (original, voronoi, triangulation, etc). Which tessellation would be best for a MAUP? Which tessellation would be the easiest to compute? If you wanted to accurately represent the US which would you choose?  
 
-# Question 3
+# Question 3 - Dam Distrubtions over the US
 #### Step 3.1
 ```{r, message = FALSE, results = FALSE, warning=FALSE}
 dam_data = read_excel("../data/NID2019_U.xlsx") %>% 
@@ -217,7 +220,7 @@ plot_counts(grd_pip, "Dams in US: Square Grid")
 plot_counts(hex_pip, "Dams in US: Hexagonal Grid")
 ```
 
-# Question 4
+# Question 4 - Wrap Up
 ```{r}
 unique(dam_data$PURPOSES) %>% length
 

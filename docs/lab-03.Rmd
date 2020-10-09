@@ -3,9 +3,13 @@ title: "Geography 176A"
 author: "[Ryan Erickson](https://github.com/IamRyanE)"
 subtitle: 'Lab 03: Distances and the Border Zone'
 output:
-  html_document:
-    theme: journal
+  rmdformats::readthedown:
+  highlight: tango
 ---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "75%", fig.align = 'center')
+```
+
 ## Libraries
 ### SPDS
 ```{r, message=FALSE}

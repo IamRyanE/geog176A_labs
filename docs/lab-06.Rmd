@@ -1,0 +1,171 @@
+---
+title: "Geography 176A"
+author: "[Ryan Erickson](https://github.com/IamRyanE)"
+subtitle: "Lab 6 - Class Wrap Up"
+output:
+  rmdformats::readthedown:
+  highlight: tango
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, out.width = "75%", eval = FALSE, fig.align = 'center')
+```
+
+## Libraries
+
+```{r, echo = TRUE}
+library(sf)
+library(raster)
+library(fasterize)
+library(whitebox)
+library(osmdata)
+library(elevatr)
+```
+# Data Gathering
+
+```{r}
+gage  = 11119750 
+base  = "https://labs.waterdata.usgs.gov/api/nldi/linked-data/nwissite/USGS-"
+basin = read_sf(paste0(base, gage,"/basin/"))
+```
+
+### Elevation Data
+
+```{r}
+elev  = get_elev_raster(basin, z = 13) %>%
+  crop(basin) %>%
+  mask(basin)
+
+elev_ft = elev * 3.281
+
+writeRaster(elev_ft, filename = "../data/goleta-creek-elev.tif", overwrite = TRUE)
+```
+
+### Buildings and river-network data
+
+````{r}
+q = opq(basin)
+building =  add_osm_feature(q, "building") %>% osmdata_sf()
+water = add_osm_feature(q, "waterway", "stream")  %>% osmdata_sf()
+
+build = st_centroid(building$osm_polygons) %>% st_intersection(basin)
+
+railroad = dplyr::filter(build, amenity == "railway")
+
+riv =  st_intersection(water$osm_lines, basin)
+
+#sf::write_sf(riv ,"data/river.shp")
+```
+
+# Terrain Analysis
+### Hillshade
+
+```{r}
+wbt_hillshade("../data/goleta-creek-elev.tif", 
+              "../data/goleta-creek-hill.tif",
+              zfactor = 0.00000316)
+
+hillshade = raster("../data/goleta-creek-hill.tif")
+
+par(mar=c(0,0,0,0))
+plot(hillshade, col = gray.colors(256, alpha = .5), legend = FALSE, box = FALSE, axes = FALSE)
+plot(basin$geometry, add = TRUE)
+plot(riv$geometry, col = "navy", add = TRUE)
+```
+
+#### Creating the river raster
+
+```{r}
+utf = st_transform(riv, 5070) %>%
+  st_buffer(10) %>%
+  st_transform(crs(elev_ft)) %>% 
+  fasterize(elev_ft)
+
+writeRaster(utf, filename = "../data/river.tif", overwrite = TRUE)
+```
+
+#### Creating the hydrologically corrected surface
+
+```{r}
+wbt_breach_depressions("../data/goleta-creek-elev.tif",  "../data/goleta-creek-b.tif")
+```
+
+#### Creating the HAND raster
+
+```{r}
+wbt_elevation_above_stream("../data/goleta-creek-b.tif", "../data/river.tif", '../data/hand.tif')
+```
+
+### Correcting to local reference datum
+
+
+```{r}
+h = raster('../data/hand.tif')
+r = raster('../data/river.tif')
+h = h + 3.69
+h[r == 1] = 0
+writeRaster(h, "../data/hand-corrected.tif", overwrite = TRUE)
+```
+
+# 2017 Impact Assessment
+
+## Mapping the flood
+ 
+### Estimate the impacts
+
+```{r}
+h = raster("../data/hand-corrected.tif")
+tmp = h
+tmp[tmp >= 10.02] = NA
+cols = ifelse(!is.na(raster::extract(tmp, build)), "red", "black")
+
+plot(hillshade, col = gray.colors(256, alpha = .5),  legend = FALSE, 
+         main = paste0(sum(cols == "red"), " impacted buildings, 10.02 foot stage"))
+
+    plot(tmp, col = rev(blues9), legend = FALSE, add = TRUE)
+    
+    plot(build$geometry, add = TRUE, pch = 16, cex = .06, col = cols)
+    
+    plot(railroad$geometry, col = "green", pch = 16, add = TRUE)
+    
+    plot(basin$geometry, add = TRUE, border = "black")
+```
+
+
+# Flood Inudation Map library
+
+```{r echo = TRUE, eval = TRUE}
+(sb = AOI::aoi_get("Santa Barbara"))
+```
+
+ 
+```{r, echo = TRUE}
+gifski::save_gif({
+  for(i in 0:20) {
+    ...
+  }
+}, gif_file = "data/mission-creek-fim.gif",
+   width = 600, height = 600, 
+   delay = .7, loop = TRUE)
+```
+
+```{r}
+h = raster("data/hand-corrected.tif")
+bas2 = st_intersection(basin, sb)
+hill2 = crop(hillshade, sb)
+h2 = crop(h, sb)
+
+gifski::save_gif({
+  for(t in 0:20) {
+    tmp = h2
+    tmp[tmp > t] = NA
+    cols = ifelse(!is.na(raster::extract(tmp, build)), "red", "black")
+    plot(hill2, col = gray.colors(256, alpha = .5),  legend = FALSE, 
+         main = paste0(sum(cols == "red"), " impacted buildings, ", t, " foot stage"))
+    plot(tmp, col = rev(blues9), legend = FALSE, add = TRUE)
+    plot(build$geometry, add = TRUE, pch = 16, cex = .25, col = cols)
+    plot(railroad$geometry, col = "green", pch = 16, add = TRUE)
+    plot(bas2$geometry, add = TRUE, border = "black")
+  }
+}, gif_file = "../data/tmp.gif", width = 600, height = 600, delay = .7, loop = TRUE)
+```

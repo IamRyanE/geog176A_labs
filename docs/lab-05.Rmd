@@ -1,14 +1,19 @@
 ---
 title: "Geography 176A"
 author: "[Ryan Erickson](https://github.com/IamRyanE)"
-subtitle: 'Lab 04: Distances and the Border Zone'
+subtitle: 'Lab 05: Palo Flood Raster Analysis'
 output:
-  html_document:
-    theme: journal
+  rmdformats::readthedown:
+  highlight: tango
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "75%", fig.align = 'center')
+```
+
 # Libraries
-```{r}
+
+```{r, message=FALSE, warning=FALSE}
 library(raster)
 library(tidyverse)
 library(getlandsat) 
@@ -18,7 +23,7 @@ library(osmdata)
 library(factoextra)
 ```
 # Question 1
-```{r}
+```{r, message=FALSE, warning=FALSE}
 bb=read_csv("../data/uscities.csv") %>%
   filter(city=="Palo") %>%
   st_as_sf(coords= c("lng","lat"),crs=4326) %>%
@@ -32,7 +37,7 @@ mapview(bb)
 ```
 
 # Question 2
-```{r}
+```{r, message=FALSE, warning=FALSE}
 bbwgs= bb %>% st_transform(4326)
 
 bb=st_bbox(bbwgs)
@@ -47,7 +52,7 @@ write.csv(scene,file="../data/palo-flood.csv")
 ```
  
 
-# Question 2 - Reading in created .csv data
+#### Reading in created .csv data
 ```{r, message=FALSE}
 md = read_csv("../data/palo_flood.csv")
 
@@ -77,18 +82,21 @@ plotRGB(r, r=4 ,g=3 ,b=2, stretch= "hist")
 
 Color Infrared
 ```{r}
+par(mfrow=c(1,2))
 plotRGB(r, r=5 ,g=4 ,b=3, stretch= "lin")
 plotRGB(r, r=5 ,g=4 ,b=3, stretch= "hist")
 ```
 
 False Color Water Focus
 ```{r}
+par(mfrow=c(1,2))
 plotRGB(r, r=5 ,g=6 ,b=4, stretch= "lin")
 plotRGB(r, r=5 ,g=6 ,b=4, stretch= "hist")
 ```
 
 My Choice
 ```{r}
+par(mfrow=c(1,2))
 plotRGB(r, r=1 ,g=3 ,b=6, stretch= "lin")
 plotRGB(r, r=1 ,g=3 ,b=6, stretch= "hist")
 ```

@@ -1,44 +1,44 @@
 ---
 title: "Lab Home Page"
 author: "[Ryan Erickson](https://iamryane.github.io/RyanE/)"
+icon: fa-github
+href: https://github.com/IamRyanE
+output:
+  prettydoc::html_pretty:
+    theme: tactile
 ---
 
 ```{r, message=FALSE, include=FALSE}
 library(icon)
 ```
 
-# Hello, and welcome to my Lab Webpage. 
+# A collection of Lab Assignments
 
-This is a collection of labs I've done while helping out with a class. The class is Geography 176A at UCSB, and is an introduction to GIS. It's the first part in a three course series that is required for all students seeking the GIS emphasis in their Geography. Below you can see all the labs I've done for this class (some may be incomplete for the time being):
+These are labs I've done while helping out with geography class at UCSB. I had the privilege of working with many great students and showing them these concepts in R. I would typically answer any questions students had about the lads and certain lines of code that may be confusing to new coders. 
 
 <center>
+### Lab 1 - An Introduction to the Course
 
-## [Lab 1]()
+This was an introduction to R, RMArkdown, Github, and basic HTML/CSS. Here students had to install various programs and get everything ready for the course. The result of which, became a class roster with rough geographic locations of the instructors. Since this lab didn't produce any maps or go over any new data science materials, I've linked the website [here](https://mikejohnson51.github.io/geog176A_2020/index.html). This introduction also exposed the students to pulling, editing, committing, and pushing to github to create this website.
 
-This was an easy lab, I'm not sure if I'll add it
+### [Lab 2 - COVID-19 Pandemic Data Wrangling](https://iamryane.github.io/geog176A_labs/lab-02.html)
 
-## [Lab 2](https://iamryane.github.io/geog176A_labs/lab-02.html)
+Here we explained the basics behind data manipulations and statistical displays in R. 
 
-</center>
+### [Lab 3 - Dam Analysis](https://iamryane.github.io/geog176A_labs/lab-03.html)
 
-Things to change:
- 
-  - Add Summaries to each lab
-  
-  - Change titles from numbers to lab title (i.e. NID Investigation Lab)
-  
-  - Add page with daily assignments
-  
-<center>
+This lab introduced the students to the creation of many points and how to do analysis with them in ggplot. Here we used the distances to borders to show them how to apply basic spatial principles (such as points in polygons and distances to different target areas) in R. 
 
-## [Lab 3](https://iamryane.github.io/geog176A_labs/lab-03.html)
+### [Lab 4 - Tesselation Creation](https://iamryane.github.io/geog176A_labs/lab-04.html)
 
-Testing how the summary of each lab would look
+This lab showed the students how to create different tessellations in R and how to conduct analysis with them. 
 
-## [Lab 4](https://iamryane.github.io/geog176A_labs/lab-04.html)
+### [Lab 5 - Flooding Analysis](https://iamryane.github.io/geog176A_labs/lab-05.html)
 
-## [Lab 5](https://iamryane.github.io/geog176A_labs/lab-05.html)
+This lab aims to identify areas of flooding and was and introduction to raster manipulation in R
 
-Add some description
+### [Lab 6 - Class Wrap Up](https://iamryane.github.io/geog176A_labs/lab-06.html)
+
+This lab aims to build a full Flood Inundation Map (FIM) Library for the Mission Creek Basin. This lab summed up the entirety of the course.
 
 </center>

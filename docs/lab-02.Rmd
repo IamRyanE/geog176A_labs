@@ -3,9 +3,13 @@ title: "Geography 176A"
 author: "[Ryan Erickson](https://github.com/IamRyanE)"
 subtitle: 'Lab 02: COVID-19 Pandemic'
 output:
-  html_document:
-    theme: journal
+  rmdformats::readthedown:
+  highlight: tango
 ---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "75%", fig.align = 'center')
+```
 
 # Libraries needed
 
@@ -19,7 +23,7 @@ library(zoo)
 # Data
 ```{r, warning=FALSE}
 data = read.csv('https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-counties.csv')
-popdata = read_xls('data/PopulationEstimates.xls', skip = 2)
+popdata = read_xls('../data/PopulationEstimates.xls', skip = 2)
 ```
 
 # Question 1
@@ -34,7 +38,7 @@ caldata <- data %>%
   mutate(newcases = cases - lag(cases)) %>% 
   ungroup()
 ```
-Simple, easy four lines of code to understand. Simply put, I took the data, filtered to California, grouped each county by date, created the new cases variable, and ungrouped the whole thing for later analysis. EZ, PZ, lemon squeezie. 
+Simple, easy four lines of code to understand. Simply put, I took the data, filtered to California, grouped each county by date, created the new cases variable, and ungrouped the whole thing for later analysis. 
 
 #### 3. Generating Two tables
 ```{r, warning=FALSE}
