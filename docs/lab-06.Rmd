@@ -8,7 +8,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, out.width = "75%", eval = FALSE, fig.align = 'center')
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = "75%", fig.align = 'center')
 ```
 
 ## Libraries
@@ -53,8 +53,6 @@ build = st_centroid(building$osm_polygons) %>% st_intersection(basin)
 railroad = dplyr::filter(build, amenity == "railway")
 
 riv =  st_intersection(water$osm_lines, basin)
-
-#sf::write_sf(riv ,"data/river.shp")
 ```
 
 # Terrain Analysis
@@ -136,21 +134,8 @@ plot(hillshade, col = gray.colors(256, alpha = .5),  legend = FALSE,
 
 ```{r echo = TRUE, eval = TRUE}
 (sb = AOI::aoi_get("Santa Barbara"))
-```
 
- 
-```{r, echo = TRUE}
-gifski::save_gif({
-  for(i in 0:20) {
-    ...
-  }
-}, gif_file = "data/mission-creek-fim.gif",
-   width = 600, height = 600, 
-   delay = .7, loop = TRUE)
-```
-
-```{r}
-h = raster("data/hand-corrected.tif")
+h = raster("../data/hand-corrected.tif")
 bas2 = st_intersection(basin, sb)
 hill2 = crop(hillshade, sb)
 h2 = crop(h, sb)
@@ -167,5 +152,5 @@ gifski::save_gif({
     plot(railroad$geometry, col = "green", pch = 16, add = TRUE)
     plot(bas2$geometry, add = TRUE, border = "black")
   }
-}, gif_file = "../data/tmp.gif", width = 600, height = 600, delay = .7, loop = TRUE)
+}, gif_file = "../data/cool.gif", width = 600, height = 600, delay = .7, loop = TRUE)
 ```
